@@ -2633,7 +2633,13 @@ fail:
     s->ref = NULL;
     return ret;
 }
-
+static int myget_qPy(HEVCContext *s, int xC, int yC)
+{
+    int log2_min_cb_size  = s->sps->log2_min_cb_size;
+    int x                 = xC >> log2_min_cb_size;
+    int y                 = yC >> log2_min_cb_size;
+    return s->qp_y_tab[x + y * s->sps->min_cb_width];
+}
 static int decode_nal_unit(HEVCContext *s, const HEVCNAL *nal)
 {
     HEVCLocalContext *lc = s->HEVClc;
@@ -2762,6 +2768,25 @@ static int decode_nal_unit(HEVCContext *s, const HEVCNAL *nal)
                 goto fail;
             }
         }
+	{
+		int x,y,avgq=0, mbcount=0;
+		for (y = 0; y < s->sps->height; y += 16) {
+		// printf("\n[%3d] ", y);
+        for (x = 0; x < s->sps->width; x += 16) {
+			const int qp = myget_qPy(s, x, y);
+			// const int qp = (myget_qPy(s, x, y - 1)     + myget_qPy(s, x, y)     + 1) >> 1;
+			// printf("%d ",qp);
+			avgq +=qp;
+			mbcount++;
+		}
+		}
+        // printf("\n");
+		// printf("\nnal type = %d log2_min_cb_size, min_cb_width = %d %d avgQ= %.02f %d\n", s->nal_unit_type, s->sps->log2_min_cb_size, s->sps->min_cb_width, (float)avgq/mbcount, nal->raw_size);
+		s->h26xbufsize = nal->raw_size;
+		s->h26xsumqscale = avgq;
+		s->h26xmb_num = mbcount;
+	}
+
         break;
     case NAL_EOS_NUT:
     case NAL_EOB_NUT:
@@ -3142,6 +3167,13 @@ static int hevc_decode_frame(AVCodecContext *avctx, void *data, int *got_output,
         av_frame_move_ref(data, s->output_frame);
         *got_output = 1;
     }
+
+    avpkt->h26xnal_unit_type = s->nal_unit_type;
+    avpkt->h26xslice_type = IS_IDR(s) ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_P;
+    avpkt->h26xbufsize = avpkt->size;//s->h26xbufsize;
+    avpkt->h26xsumqscale = s->h26xsumqscale;
+    avpkt->h26xmb_num = s->h26xmb_num;
+    // printf("s: nal type = %d avgQ= %.02f %d\n", s->nal_unit_type, (float)s->h26xsumqscale/s->h26xmb_num, avpkt->size);
 
     return avpkt->size;
 }

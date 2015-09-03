@@ -2318,6 +2318,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
 
         ff_h264_init_cabac_states(h, sl);
 
+        sl->h264->h26xsumqscale = 0;
         for (;;) {
             // START_TIMER
             int ret, eos;
@@ -2333,6 +2334,9 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             ret = ff_h264_decode_mb_cabac(h, sl);
             // STOP_TIMER("decode_mb_cabac")
 
+            sl->h264->h26xsumqscale += h->cur_pic.qscale_table[sl->mb_xy];
+            // if (sl->mb_x == 0) printf("\n[%3d] ", sl->mb_y * 16);
+            // printf("%d ",h->cur_pic.qscale_table[sl->mb_xy]);
             if (ret >= 0)
                 ff_h264_hl_decode_mb(h, sl);
 
@@ -2387,6 +2391,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                              sl->mb_y, ER_MB_END);
                 if (sl->mb_x > lf_x_start)
                     loop_filter(h, sl, lf_x_start, sl->mb_x);
+                // printf("\n");
                 return 0;
             }
         }

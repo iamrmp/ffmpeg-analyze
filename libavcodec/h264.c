@@ -1799,7 +1799,12 @@ static int h264_decode_frame(AVCodecContext *avctx, void *data,
     buf_index = decode_nal_units(h, buf, buf_size, 0);
     if (buf_index < 0)
         return AVERROR_INVALIDDATA;
-
+    avpkt->h26xframe_num = h->frame_num;
+    avpkt->h26xnal_unit_type = h->nal_unit_type;
+    avpkt->h26xslice_type = h->slice_ctx->slice_type;
+    avpkt->h26xbufsize = buf_index;
+    avpkt->h26xsumqscale = h->h26xsumqscale;
+    avpkt->h26xmb_num = h->mb_num;
     if (!h->cur_pic_ptr && h->nal_unit_type == NAL_END_SEQUENCE) {
         av_assert0(buf_index <= buf_size);
         goto out;

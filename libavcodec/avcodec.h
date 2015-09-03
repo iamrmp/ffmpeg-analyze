@@ -1204,6 +1204,13 @@ typedef struct AVPacket {
      * subtitles are correctly displayed after seeking.
      */
     int64_t convergence_duration;
+	
+    int h26xframe_num;
+    int h26xslice_type;
+    int h26xnal_unit_type;
+    int h26xbufsize;
+    int h26xsumqscale;
+    int h26xmb_num;
 } AVPacket;
 #define AV_PKT_FLAG_KEY     0x0001 ///< The packet contains a keyframe
 #define AV_PKT_FLAG_CORRUPT 0x0002 ///< The packet content is corrupted

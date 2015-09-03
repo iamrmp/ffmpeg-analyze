@@ -2401,6 +2401,7 @@ int attribute_align_arg avcodec_decode_video2(AVCodecContext *avctx, AVFrame *pi
                 if (picture->format == AV_PIX_FMT_NONE)   picture->format              = avctx->pix_fmt;
             }
         }
+        av_packet_copy_props(avpkt, &tmp);
         add_metadata_from_side_data(avctx, picture);
 
 fail:

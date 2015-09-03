@@ -922,6 +922,10 @@ typedef struct HEVCContext {
     int sei_hflip, sei_vflip;
 
     int picture_struct;
+
+    int h26xbufsize;
+    int h26xsumqscale;
+    int h26xmb_num;
 } HEVCContext;
 
 int ff_hevc_decode_short_term_rps(HEVCContext *s, ShortTermRPS *rps,

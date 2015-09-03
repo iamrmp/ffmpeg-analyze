@@ -2187,6 +2187,15 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
     int got_output = 0;
 
     AVPacket avpkt;
+	
+    static int lastframe =    0;
+    static int Iframesize =   0;
+    static int Pframesize =   0;
+    static int Avgframesize = 0;
+    static int IframeCnt = 0, PframeCnt = 0;
+    static double AvgQ = 0.0, MinQ = 51.0, MaxQ = 0.0, last_pts = 0.01, last_pts2 = 0.01, last_tick = 0.0;
+    double CurQ ;
+	
     if (!ist->saw_first_ts) {
         ist->dts = ist->st->avg_frame_rate.num ? - ist->dec_ctx->has_b_frames * AV_TIME_BASE / av_q2d(ist->st->avg_frame_rate) : 0;
         ist->pts = 0;
@@ -2256,6 +2265,13 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
 
             if (got_output)
                 ist->next_pts += duration; //FIXME the duration is not correct in some cases
+            if (got_output) {
+                CurQ = (double) avpkt.h26xsumqscale / avpkt.h26xmb_num;
+                Avgframesize += avpkt.h26xbufsize;
+                AvgQ += CurQ;
+                if (MinQ > CurQ) MinQ = CurQ;
+                if (MaxQ < CurQ) MaxQ = CurQ;
+            }
             break;
         case AVMEDIA_TYPE_SUBTITLE:
             ret = transcode_subtitles(ist, &avpkt, &got_output);
@@ -2319,7 +2335,111 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
 
         do_streamcopy(ist, ost, pkt);
     }
-
+    if (got_output)
+    {
+        int cnt;
+        double ql ;
+        /* compute min output value */
+        double bitrate, ti1 = 1e10, pts;
+        OutputStream *ost = output_streams[0];
+        
+        pts = (double)ost->last_mux_dts * av_q2d(ost->st->time_base);
+        if ((pts < ti1) && (pts > 0))
+            ti1 = pts;
+        if (ti1 < 0.01)
+            ti1 = 0.01;
+        
+        if (avpkt.h26xnal_unit_type == 5 || 19 == avpkt.h26xnal_unit_type) {Iframesize += avpkt.h26xbufsize;IframeCnt++;}
+        if (avpkt.h26xnal_unit_type == 1) {Pframesize += avpkt.h26xbufsize;PframeCnt++;}
+#if 0
+        if ((ist->frames_decoded % 100) == 0 && IframeCnt && PframeCnt)
+        {
+            printf("%.1f:1 %7d %7d %7d %.2f ±%.2f ", 
+            (double) (Iframesize / IframeCnt) / (Pframesize / PframeCnt),
+            Iframesize / IframeCnt,
+            Pframesize / PframeCnt,
+            Avgframesize / (PframeCnt + IframeCnt),
+            AvgQ / (PframeCnt + IframeCnt), MaxQ - MinQ);
+        
+            for (cnt = 0,ql = 24.0;cnt < 26;cnt++,ql += 1.0)
+            {
+                if (ql < MinQ)
+                {
+                    printf(" ");
+                }
+                else if (ql < AvgQ / (PframeCnt + IframeCnt))
+                {
+                    printf("-");
+                }
+                else if (ql < MaxQ)
+                {
+                    printf("+");
+                }
+                else
+                {
+                    printf(" ");
+                }
+            }
+            printf("frame=%5d time=%0.2f ", ost->frame_number, ti1);
+            printf("\n");
+            
+            lastframe = ist->frames_decoded;
+            Iframesize = IframeCnt = 
+            Pframesize = PframeCnt = 
+            Avgframesize = 0;
+            AvgQ = 0.0; 
+            MaxQ = 0.0; 
+            MinQ = 51.0;
+        }
+#elif 0
+        printf("num:%ld: type:%c-%2d, size:%d, q:%.2f, dts:%lld, dts_time:%lld, pts:%lld, pts_time:%lld, duration:%d, duration_time: %lld\n"
+        , ist->frames_decoded
+        , av_get_picture_type_char(avpkt.h26xslice_type)
+        , avpkt.h26xframe_num
+        , avpkt.h26xbufsize
+        , CurQ
+        ,ist->pts
+        ,ist->pts
+        ,ist->pts
+        ,ist->pts
+        ,avpkt.duration
+        ,av_rescale_q(avpkt.duration, ist->st->time_base, AV_TIME_BASE_Q));
+#else
+        if (AV_PICTURE_TYPE_I == avpkt.h26xslice_type)
+        {
+            printf(" FPS = %0.2f GOP = %ld "
+            , (ist->frames_decoded - lastframe) / (ti1 - last_pts), ist->frames_decoded - lastframe);
+            last_pts = ti1;
+            lastframe = ist->frames_decoded;
+            printf("\n");
+        }
+        else
+        {
+            printf("\n");
+            fflush(stdout);
+        }
+        
+        printf("%5ld: %c-%2d, size %7d, %.2f"
+        , ist->frames_decoded
+        , av_get_picture_type_char(avpkt.h26xslice_type)
+        , avpkt.h26xframe_num
+        , avpkt.h26xbufsize
+        , CurQ);
+        // printf(" frame=%5d", ost->frame_number);
+        printf(" deltaT=%0.2f ms", (ti1 - last_tick)*1000);
+        // printf(" time=%0.2f %0.2f ", ti1, last_pts2);
+        // if (AV_PICTURE_TYPE_I == avpkt.h26xslice_type) printf("\n");
+        last_tick = ti1;
+        
+        if (ti1 - last_pts2 >= 0.990 || last_pts2 > ti1)
+        {
+            printf(" BR = %0.2f kB ", ((Iframesize + Pframesize) * 8) / ((ti1 - last_pts2) * 1024));
+            last_pts2 = ti1;
+            Iframesize = IframeCnt =  
+            Pframesize = PframeCnt = 0;
+        }
+#endif
+    }
     return got_output;
 }
 

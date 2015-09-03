@@ -1845,7 +1845,13 @@ static int open_output_file(OptionsContext *o, const char *filename)
     if (o->recording_time != INT64_MAX)
         oc->duration = o->recording_time;
 
-    file_oformat= oc->oformat;
+    //after av_guess_format()
+    if (!strncmp(filename, "null.", 5))
+    {
+        file_overwrite = 1;
+        filename = "/dev/null";
+    }
+	file_oformat= oc->oformat;
     oc->interrupt_callback = int_cb;
 
     /* create streams for all unlabeled output pads */

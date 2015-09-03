@@ -63,6 +63,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
     pkt->buf                  = NULL;
     pkt->side_data            = NULL;
     pkt->side_data_elems      = 0;
+    pkt->h26xframe_num        =
+    pkt->h26xslice_type       =
+    pkt->h26xnal_unit_type    =
+    pkt->h26xbufsize          =
+    pkt->h26xsumqscale        =
+    pkt->h26xmb_num           = 0;
 }
 
 static int packet_alloc(AVBufferRef **buf, int size)
@@ -530,6 +536,13 @@ int av_packet_copy_props(AVPacket *dst, const AVPacket *src)
     dst->convergence_duration = src->convergence_duration;
     dst->flags                = src->flags;
     dst->stream_index         = src->stream_index;
+
+    dst->h26xframe_num        = src->h26xframe_num;
+    dst->h26xnal_unit_type    = src->h26xnal_unit_type;
+    dst->h26xslice_type       = src->h26xslice_type;
+    dst->h26xbufsize          = src->h26xbufsize;
+    dst->h26xsumqscale        = src->h26xsumqscale;
+    dst->h26xmb_num           = src->h26xmb_num;
 
     for (i = 0; i < src->side_data_elems; i++) {
          enum AVPacketSideDataType type = src->side_data[i].type;

@@ -471,6 +471,7 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
 
     fctx->next_finished = finished;
 
+    av_packet_copy_props(avpkt, &p->avpkt);
     /* return the size of the consumed packet if no error occurred */
     return (p->result >= 0) ? avpkt->size : p->result;
 }
