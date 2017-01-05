@@ -91,6 +91,7 @@ char av_get_picture_type_char(enum AVPictureType pict_type)
     case AV_PICTURE_TYPE_SI: return 'i';
     case AV_PICTURE_TYPE_SP: return 'p';
     case AV_PICTURE_TYPE_BI: return 'b';
+    case 'J': return 'J';
     default:                 return '?';
     }
 }

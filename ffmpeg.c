@@ -2338,6 +2338,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
     if (got_output)
     {
         int cnt;
+        static int lastframenum;
         double ql ;
         /* compute min output value */
         double bitrate, ti1 = 1e10, pts;
@@ -2413,12 +2414,18 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
             lastframe = ist->frames_decoded;
             printf("\n");
         }
-        else
+        else if (AV_PICTURE_TYPE_P == avpkt.h26xslice_type)
         {
             printf("\n");
             fflush(stdout);
         }
-        
+        if (ist->dec_ctx->codec_id == AV_CODEC_ID_H264 &&
+		'P' == av_get_picture_type_char(avpkt.h26xslice_type))
+        {
+            if (avpkt.h26xframe_num != lastframenum + 1) printf("\033[31m" "%5ld: Error, P frame Drop!!!" "\033[39m" "\n", ist->frames_decoded);
+                //av_log(NULL, AV_LOG_ERROR, "Error, P frame Drop!!!\n");
+        }
+
         printf("%5ld: %c-%2d, size %7d, %.2f"
         , ist->frames_decoded
         , av_get_picture_type_char(avpkt.h26xslice_type)
@@ -2430,6 +2437,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
         // printf(" time=%0.2f %0.2f ", ti1, last_pts2);
         // if (AV_PICTURE_TYPE_I == avpkt.h26xslice_type) printf("\n");
         last_tick = ti1;
+        lastframenum = avpkt.h26xframe_num;
         
         if (ti1 - last_pts2 >= 0.990 || last_pts2 > ti1)
         {
@@ -2437,6 +2445,17 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
             last_pts2 = ti1;
             Iframesize = IframeCnt =  
             Pframesize = PframeCnt = 0;
+            if ('J' == avpkt.h26xslice_type)
+            {
+                printf(" FPS = %0.2f "
+                , (ist->frames_decoded - lastframe) / (ti1 - last_pts));
+                last_pts = ti1;
+                lastframe = ist->frames_decoded;
+            }
+        }
+        if ('J' == avpkt.h26xslice_type)
+        {
+            printf("\n");
         }
 #endif
     }

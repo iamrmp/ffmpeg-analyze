@@ -2105,6 +2105,13 @@ eoi_parser:
 
                 if(avctx->debug & FF_DEBUG_QP)
                     av_log(avctx, AV_LOG_DEBUG, "QP: %d\n", qp);
+
+                avpkt->h26xframe_num = avctx->frame_number;
+                avpkt->h26xnal_unit_type = 5;
+                avpkt->h26xslice_type = 'J';
+                avpkt->h26xbufsize = buf_size;
+                avpkt->h26xsumqscale = qp;
+                avpkt->h26xmb_num = 1;
             }
 
             goto the_end;
