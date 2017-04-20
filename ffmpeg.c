@@ -2405,7 +2405,15 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
         ,ist->pts
         ,avpkt.duration
         ,av_rescale_q(avpkt.duration, ist->st->time_base, AV_TIME_BASE_Q));
+#elif 1
+        printf("%5ld,%d,%7d,%.2f\n"
+            , ist->frames_decoded
+        , (AV_PICTURE_TYPE_I == avpkt.h26xslice_type)?1:0
+            , avpkt.h26xbufsize
+            , CurQ);
 #else
+        if (ist->frames_decoded == 1){
+        } else
         if (AV_PICTURE_TYPE_I == avpkt.h26xslice_type)
         {
             printf(" FPS = %0.2f GOP = %ld "
@@ -2417,9 +2425,8 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
         else if (AV_PICTURE_TYPE_P == avpkt.h26xslice_type)
         {
             printf("\n");
-            fflush(stdout);
         }
-        if (ist->dec_ctx->codec_id == AV_CODEC_ID_H264 &&
+        if ((ist->dec_ctx->codec_id == AV_CODEC_ID_H264 || ist->dec_ctx->codec_id == AV_CODEC_ID_HEVC) &&
 		'P' == av_get_picture_type_char(avpkt.h26xslice_type))
         {
             if (avpkt.h26xframe_num != lastframenum + 1) printf("\033[31m" "%5ld: Error, P frame Drop!!!" "\033[39m" "\n", ist->frames_decoded);
@@ -2433,15 +2440,15 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt)
         , avpkt.h26xbufsize
         , CurQ);
         // printf(" frame=%5d", ost->frame_number);
-        printf(" deltaT=%0.2f ms", (ti1 - last_tick)*1000);
+        printf(" deltaT=%0.2f ms", (ti1 == 1e10) ? 0 : (ti1 - last_tick)*1000);
         // printf(" time=%0.2f %0.2f ", ti1, last_pts2);
         // if (AV_PICTURE_TYPE_I == avpkt.h26xslice_type) printf("\n");
-        last_tick = ti1;
+        if (ti1 != 1e10) last_tick = ti1;
         lastframenum = avpkt.h26xframe_num;
         
-        if (ti1 - last_pts2 >= 0.990 || last_pts2 > ti1)
+        if (ti1 != 1e10 && (ti1 - last_pts2 >= 0.990 || last_pts2 > ti1))
         {
-            printf(" BR = %0.2f kB ", ((Iframesize + Pframesize) * 8) / ((ti1 - last_pts2) * 1024));
+            printf(" BR = %0.2f kb ", ((Iframesize + Pframesize) * 8) / ((ti1 - last_pts2) * 1024));
             last_pts2 = ti1;
             Iframesize = IframeCnt =  
             Pframesize = PframeCnt = 0;

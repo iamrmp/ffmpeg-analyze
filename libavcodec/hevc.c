@@ -3168,6 +3168,7 @@ static int hevc_decode_frame(AVCodecContext *avctx, void *data, int *got_output,
         *got_output = 1;
     }
 
+    avpkt->h26xframe_num = s->poc;
     avpkt->h26xnal_unit_type = s->nal_unit_type;
     avpkt->h26xslice_type = IS_IDR(s) ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_P;
     avpkt->h26xbufsize = avpkt->size;//s->h26xbufsize;
